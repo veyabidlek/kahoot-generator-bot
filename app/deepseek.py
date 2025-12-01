@@ -59,7 +59,7 @@ Question design requirements:
 - Avoid trivial copy-paste questions where the answer is literally a phrase from the context with no reasoning.
 
 Output format (IMPORTANT):
-- Output MUST be a single valid JSON ARRAY (not wrapped in any other fields).
+- Output MUST be a JSON object with a "questions" key containing an array.
 - Each element of the array is an object with the fields:
   - "question": string, the question text.
   - "answers": array of exactly 4 strings, the answer options.
@@ -67,21 +67,23 @@ Output format (IMPORTANT):
   - "time_limit": integer (seconds), usually between 30 and 90, depending on complexity.
 
 Example of the required structure (schema, not actual content):
-[
-  {{
-    "question": "…",
-    "answers": ["…", "…", "…", "…"],
-    "correct": 2,
-    "time_limit": 60
-  }},
-  ...
-]
+{{
+  "questions": [
+    {{
+      "question": "…",
+      "answers": ["…", "…", "…", "…"],
+      "correct": 2,
+      "time_limit": 60
+    }},
+    ...
+  ]
+}}
 
 Additional rules:
 - Randomize the position of the correct answer among the 4 options.
-- Do NOT include any explanations, reasoning steps, comments, or extra text
-  outside of the JSON array.
-- The JSON must be syntactically valid (no trailing commas).
+- Do NOT include any explanations, reasoning steps, comments, or extra text.
+- The JSON must be syntactically valid (no trailing commas, proper escaping of quotes).
+- Ensure all strings are properly escaped and quoted.
 """
 
     response = await client.chat.completions.create(

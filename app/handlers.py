@@ -22,6 +22,7 @@ from utils import (
     extract_content_from_message,
     quiz_to_dataframe,
     dataframe_to_excel_bytes,
+    clean_and_parse_json,
 )
 
 
@@ -162,17 +163,49 @@ async def get_questions_difficulty(
     await callback.answer("Processing...")
     await callback.message.answer("Wait. Your Kahoot is being created... ⏳")
 
-    res_str = await get_deepseek_response(user_data[user_id])
-
     try:
-        res_json = json.loads(res_str)
+        res_str = await get_deepseek_response(user_data[user_id])
+        
+        # Use the robust JSON parser
+        res_json = clean_and_parse_json(res_str)
+        
+        # Validate we got questions
+        if not res_json:
+            await callback.message.answer(
+                "❌ AI returned empty questions list. Please try again."
+            )
+            return
+        
+        # Validate question structure
+        for idx, q in enumerate(res_json):
+            if not isinstance(q, dict):
+                await callback.message.answer(
+                    f"❌ Question {idx + 1} has invalid format. Please try again."
+                )
+                return
+            
+            required_fields = ["question", "answers", "correct", "time_limit"]
+            missing = [f for f in required_fields if f not in q]
+            if missing:
+                await callback.message.answer(
+                    f"❌ Question {idx + 1} is missing fields: {', '.join(missing)}. Please try again."
+                )
+                return
+        
+        df = quiz_to_dataframe(res_json)
+        excel_file: BytesIO = dataframe_to_excel_bytes(df)
+
+        await callback.message.answer_document(
+            BufferedInputFile(excel_file.getvalue(), filename="KahootQuiz.xlsx")
+        )
+        
     except ValueError as e:
-        await callback.message.answer(f"❌ Failed to parse quiz questions: {e}")
-        return
-
-    df = quiz_to_dataframe(res_json)
-    excel_file: BytesIO = dataframe_to_excel_bytes(df)
-
-    await callback.message.answer_document(
-        BufferedInputFile(excel_file.getvalue(), filename="KahootQuiz.xlsx")
-    )
+        await callback.message.answer(
+            f"❌ Failed to parse quiz questions: {e}\n\n"
+            "This usually happens when the AI response is malformed. Please try again."
+        )
+    except Exception as e:
+        await callback.message.answer(
+            f"❌ An unexpected error occurred: {type(e).__name__}: {e}\n\n"
+            "Please try again or contact support if the issue persists."
+        )

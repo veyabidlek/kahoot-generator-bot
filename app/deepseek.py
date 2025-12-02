@@ -3,9 +3,19 @@ from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Load environment variables
+USE_DEEPSEEK = os.getenv("USE_DEEPSEEK", "false").lower() == "true"
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
-client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+# Initialize the appropriate client based on USE_DEEPSEEK
+if USE_DEEPSEEK:
+    client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+    MODEL_NAME = "deepseek-chat"
+else:
+    client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    MODEL_NAME = "gpt-5-mini"
 
 async def get_deepseek_response(config: dict):
     if config.get("is_context_limited_to_data"):
@@ -63,7 +73,7 @@ Output format (IMPORTANT):
 - Each element of the array is an object with the fields:
   - "question": string, the question text.
   - "answers": array of exactly 4 strings, the answer options.
-  - "correct": integer from 1 to 4, the index of the correct option in "answers".
+  - "correct": integer random(1 to 4) with equal probability distribution, no bias, the index of the correct option in "answers".
   - "time_limit": integer (seconds), usually between 30 and 90, depending on complexity.
 
 Example of the required structure (schema, not actual content):
@@ -87,14 +97,14 @@ Additional rules:
 """
 
     response = await client.chat.completions.create(
-        model="deepseek-chat",
+        model=MODEL_NAME,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
         response_format={
-        'type': 'json_object'
-    }
+            'type': 'json_object'
+        }
     )
 
     return response.choices[0].message.content

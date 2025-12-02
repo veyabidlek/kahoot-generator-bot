@@ -17,6 +17,7 @@ else:
     client = AsyncOpenAI(api_key=OPENAI_API_KEY)
     MODEL_NAME = "gpt-5-mini"
 
+print("Using DeepSeek API" if USE_DEEPSEEK else "Using OpenAI API")
 async def get_deepseek_response(config: dict):
     if config.get("is_context_limited_to_data"):
         context_rule = (
